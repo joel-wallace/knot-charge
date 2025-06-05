@@ -1,35 +1,33 @@
+extern crate nalgebra as na;
+use na::{Vector3, Point3};
+
+
 use crate::protein_model::CaAtom;
+use crate::plane::does_vector_pass_through_triangle_section;
 
 #[derive(Debug, Clone)]
 pub struct ChainPoint {
     pub serial: i32,       // Atom serial number, corresponds to the CA atom
-    pub x: f64,              // X coordinate
-    pub y: f64,              // Y coordinate
-    pub z: f64,              // Z coordinate
+    pub coord: Point3<f64>,          // xyz
 }
 
 impl ChainPoint {
     pub fn new(
         serial: i32,
-        x: f64,
-        y: f64,
-        z: f64,
+        coord: Point3<f64>,
     ) -> Self {
         ChainPoint {
             serial,
-            x,
-            y,
-            z,
+            coord,
         }
     }
 }
 
 pub fn ca_to_chainpoint(ca_atom: &CaAtom) -> ChainPoint {
+    let coord = Point3::new(ca_atom.x, ca_atom.y, ca_atom.z);
     ChainPoint::new(
         ca_atom.serial,
-        ca_atom.x,
-        ca_atom.y,
-        ca_atom.z,
+        coord
     )
 }
 
@@ -45,20 +43,48 @@ pub fn backbone_to_chain(ca_atoms: &Vec<CaAtom>) -> Vec<ChainPoint> {
     chainpoints
 }
 
-pub fn calc_vector(point_a: &ChainPoint, point_b: &ChainPoint) -> [f64; 3] {
-    [point_a.x - point_b.x, point_a.y - point_b.y, point_a.z - point_b.z]
+pub fn calc_vector(point_a: &ChainPoint, point_b: &ChainPoint) -> na::Vector3<f64> {
+    point_a.coord - point_b.coord 
 }
 
-pub fn calc_plane(point_a: &ChainPoint, point_b: &ChainPoint, point_c: &ChainPoint) -> [f64; 4] {
-    let ab = calc_vector(point_a, point_b);
-    let bc = calc_vector(point_b, point_c);
-    let plane_x: f64 = ab[1]*bc[2] - ab[2]*bc[1];
-    let plane_y: f64 = ab[2]*bc[0] - ab[0]*bc[2];
-    let plane_z: f64 = ab[0]*bc[1] - ab[1]*bc[0];
-    let plane_k: f64 = -(plane_x*point_a.x - plane_y*point_a.y - plane_z*point_a.z);
-    [plane_x, plane_y, plane_z, plane_k]
-}
-
-pub fn reduce_chain(chain: &Vec<ChainPoint>) -> Vec<ChainPoint> {
+pub fn reduce_chain(mut chain: Vec<ChainPoint>) -> Vec<ChainPoint> {
     
+    let mut i = 2;
+    // Algorithm to reduce chain complexity without losing any knot present
+    while i < chain.len() {
+        
+        // The three points of the triangle
+        let a = chain[i-2].coord;
+        let b = chain[i-1].coord;
+        let c = chain[i].coord;
+        let mut j = 1;
+        let mut remove_b = true;
+        while j < chain.len() {
+            let ray_start = chain[j].coord;
+            let ray_direction_fwd = calc_vector(&chain[j], &chain[j-1]);
+            let ray_direction_rev = calc_vector(&chain[j-1], &chain[j]);
+            match does_vector_pass_through_triangle_section(&a, &b, &c, &ray_start, &ray_direction_fwd, false) {
+                Some(point) => { remove_b = false },
+                None => {},
+            }
+            match does_vector_pass_through_triangle_section(&a, &b, &c, &ray_start, &ray_direction_rev, false) {
+                Some(point) => { remove_b = false },
+                None => {},
+            }
+            if remove_b == false {
+                println!("Intersection found");
+                break;
+            }
+            j = j + 1;
+        }
+        if remove_b == true {
+            chain.remove(i-1);
+            println!("Intersection not found");
+        } else {
+            i = i + 1;
+            println!("Intersection found");
+        }
+    }
+    println!("{}", chain.len());
+    chain
 }

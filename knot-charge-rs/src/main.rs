@@ -5,6 +5,7 @@ mod protein_model;
 mod pdb_parser;
 mod knot_detection;
 mod chain_model;
+mod plane;
 
 // Import necessary items
 use std::env; // For command-line arguments

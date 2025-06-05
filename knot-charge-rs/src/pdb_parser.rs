@@ -3,7 +3,7 @@
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use crate::protein_model::CaAtom; // Import the CaAtom struct
-use crate::chain_model::{ChainPoint, ca_to_chainpoint, backbone_to_chain}; // Import what you need
+use crate::chain_model::{ChainPoint, ca_to_chainpoint, backbone_to_chain, reduce_chain}; // Import what you need
 
 /// Parses a PDB file and extracts C-alpha (CA) atoms.
 ///
@@ -73,7 +73,8 @@ pub fn parse_pdb_ca_atoms(file_path: &str) -> Result<Vec<CaAtom>, String> {
     }
 
     let chain :Vec<ChainPoint> = backbone_to_chain(&ca_atoms);
-
+    let newchain = reduce_chain(chain);
+    // println!("{}", newchain.len());
 
     Ok(ca_atoms)
 }
